@@ -1,16 +1,14 @@
 # Bytenex Infrastructure Stack
 
-This project contains a robust, production-ready Docker Compose setup for hosting multiple services on a single AWS Lightsail Ubuntu instance, using an external AWS RDS PostgreSQL database.
+This project contains a robust, production-ready Docker Compose setup for hosting n8n and Evolution API on a single AWS Lightsail Ubuntu instance, using an external AWS RDS PostgreSQL database.
 
 ## Services Included
 
 1.  **Traefik v3**: Reverse Proxy and Dashboard.
-2.  **Redis**: Shared cache/queue for Mixpost and Evolution API.
+2.  **Redis**: Shared cache/queue for Evolution API.
 3.  **n8n**: Workflow automation.
-4.  **Listmonk**: Newsletter and mailing list manager.
-5.  **Mixpost**: Social media management.
-6.  **Evolution API**: WhatsApp API.
-7.  **Init DB**: A transient service that automatically checks and creates the required databases (`n8n`, `listmonk`, `mixpost`, `evolution`) in your RDS instance on startup.
+4.  **Evolution API**: WhatsApp API.
+5.  **Init DB**: A transient service that automatically checks and creates the required databases (`n8n`, `evolution`) in your RDS instance on startup.
 
 **Note**: All services connect to a shared AWS RDS PostgreSQL instance.
 
@@ -24,9 +22,7 @@ This project contains a robust, production-ready Docker Compose setup for hostin
 Ensure the following DNS records point to your Lightsail Static IP:
 
 *   `n8n.bytenex.io` (A Record)
-*   `sm.bytenex.io` (A Record)
 *   `wa.bytenex.io` (A Record)
-*   `newsletter.bytenex.io` (A Record)
 *   `net.bytenex.io` (A Record)
 
 ## Prerequisites on Lightsail (Ubuntu)
@@ -70,7 +66,6 @@ Ensure the following DNS records point to your Lightsail Static IP:
     *   `REDIS_PASSWORD`
     *   `TRAEFIK_DASHBOARD_AUTH` (See comments in file for generation)
     *   `N8N_ENCRYPTION_KEY`
-    *   `MIXPOST_APP_KEY`
     *   `EVOLUTION_API_KEY`
 
 3.  **Run Setup Script**:
@@ -80,27 +75,18 @@ Ensure the following DNS records point to your Lightsail Static IP:
     ./setup.sh
     ```
 
-4.  **Initialize Listmonk Database**:
-    Before starting everything, initialize Listmonk:
-    ```bash
-    docker compose run --rm listmonk ./listmonk --install
-    ```
-    Confirm `yes` when prompted.
-
-5.  **Start the Stack**:
+4.  **Start the Stack**:
     ```bash
     docker compose up -d
     ```
     *Note: The `init-db` service will run first to ensure all databases exist in your RDS instance.*
 
-6.  **Verify Deployment**:
+5.  **Verify Deployment**:
     *   Check logs: `docker compose logs -f`
     *   Access Traefik Dashboard: `https://net.bytenex.io`
     *   Access Services:
         *   n8n: `https://n8n.bytenex.io`
-        *   Mixpost: `https://sm.bytenex.io`
         *   Evolution: `https://wa.bytenex.io`
-        *   Listmonk: `https://newsletter.bytenex.io`
 
 ## Maintenance
 
@@ -110,7 +96,7 @@ Ensure the following DNS records point to your Lightsail Static IP:
     docker compose up -d
     ```
 *   **Backups**:
-    Back up the `n8n-data`, `listmonk-data`, `mixpost-data`, etc., directories regularly. Your database is on RDS, so configure automated backups in AWS Console.
+    Back up the `n8n-data` and `evolution-data` directories regularly. Your database is on RDS, so configure automated backups in AWS Console.
 
 ## Troubleshooting
 *   **Database Connections**: Ensure all services are using the correct `POSTGRES_HOST`, `POSTGRES_USER` and `POSTGRES_PASSWORD`.

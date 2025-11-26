@@ -11,7 +11,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     command: >
-      sh -c " echo 'Waiting for RDS to be ready...'; until pg_isready -h $$POSTGRES_HOST -U $$POSTGRES_USER; do sleep 2; done; export PGPASSWORD='$$POSTGRES_PASSWORD'; for db in n8n listmonk mixpost evolution; do
+      sh -c " echo 'Waiting for RDS to be ready...'; until pg_isready -h $$POSTGRES_HOST -U $$POSTGRES_USER; do sleep 2; done; export PGPASSWORD='$$POSTGRES_PASSWORD'; for db in n8n evolution; do
         echo \"Checking database $$db...\";
         psql -h $$POSTGRES_HOST -U $$POSTGRES_USER -d postgres -tc \"SELECT 1 FROM pg_database WHERE datname = '$$db'\" | grep -q 1 || \
         (echo \"Creating database $$db...\" && psql -h $$POSTGRES_HOST -U $$POSTGRES_USER -d postgres -c \"CREATE DATABASE $$db\");
@@ -123,86 +123,6 @@ services:
         max-file: "3"
 
   # --------------------------------------------------------------------------------------------------
-  # Listmonk - Newsletter & Mailing Lists
-  # --------------------------------------------------------------------------------------------------
-  listmonk:
-    image: listmonk/listmonk:latest
-    container_name: listmonk
-    restart: unless-stopped
-    environment:
-      - LISTMONK_app__address=0.0.0.0:9000
-      - LISTMONK_db__host=${POSTGRES_HOST}
-      - LISTMONK_db__port=${POSTGRES_PORT}
-      - LISTMONK_db__user=${POSTGRES_USER}
-      - LISTMONK_db__password=${POSTGRES_PASSWORD}
-      - LISTMONK_db__database=listmonk
-      - LISTMONK_app__admin_username=${LISTMONK_ADMIN_USER}
-      - LISTMONK_app__admin_password=${LISTMONK_ADMIN_PASSWORD}
-    volumes:
-      - ./listmonk-data:/listmonk/uploads
-    networks:
-      - bytenex-net
-    depends_on:
-      init-db:
-        condition: service_completed_successfully
-    # Command to initialize DB if needed, but Listmonk usually needs manual init or --install flag first time.
-    # We will use a custom command or instruct user to run init.
-    # For robustness, we can try to auto-run, but Listmonk is tricky.
-    # Standard command: ./listmonk
-    # command: [sh, -c, "./listmonk --install --yes && ./listmonk"]
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.listmonk.rule=Host(`${LISTMONK_SUBDOMAIN}.${DOMAIN_ROOT}`)"
-      - "traefik.http.routers.listmonk.entrypoints=websecure"
-      - "traefik.http.services.listmonk.loadbalancer.server.port=9000"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  # --------------------------------------------------------------------------------------------------
-  # Mixpost - Social Media Management
-  # --------------------------------------------------------------------------------------------------
-  mixpost:
-    build:
-      context: .
-      dockerfile: Dockerfile.mixpost
-    image: mixpost-postgres:latest
-    container_name: mixpost
-    restart: unless-stopped
-    environment:
-      - APP_URL=https://${MIXPOST_SUBDOMAIN}.${DOMAIN_ROOT}
-      - APP_KEY=${MIXPOST_APP_KEY}
-      - DB_CONNECTION=pgsql
-      - DB_HOST=${POSTGRES_HOST}
-      - DB_PORT=${POSTGRES_PORT}
-      - DB_DATABASE=mixpost
-      - DB_USERNAME=${POSTGRES_USER}
-      - DB_PASSWORD=${POSTGRES_PASSWORD}
-      - REDIS_HOST=redis
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-    volumes:
-      - ./mixpost-data:/var/www/html/storage/app
-    networks:
-      - bytenex-net
-    depends_on:
-      init-db:
-        condition: service_completed_successfully
-      redis:
-        condition: service_healthy
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.mixpost.rule=Host(`${MIXPOST_SUBDOMAIN}.${DOMAIN_ROOT}`)"
-      - "traefik.http.routers.mixpost.entrypoints=websecure"
-      - "traefik.http.services.mixpost.loadbalancer.server.port=80"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  # --------------------------------------------------------------------------------------------------
   # Evolution API - WhatsApp API
   # --------------------------------------------------------------------------------------------------
   evolution:
@@ -216,7 +136,6 @@ services:
       - DATABASE_CONNECTION_URI=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/evolution
       - REDIS_ENABLED=true
       - REDIS_URI=redis://:${REDIS_PASSWORD}@redis:6379/1
-      # Using DB 1 for Evolution to avoid conflict if Mixpost uses DB 0
     volumes:
       - ./evolution-data:/evolution/store
     networks:
