@@ -1,7 +1,14 @@
 #!/bin/bash
 
 # Create data directories
-mkdir -p traefik-data redis-data n8n-data evolution-data
+mkdir -p traefik-data redis-data n8n-data evolution-data letsencrypt
+
+# Create acme.json for Traefik
+if [ ! -f letsencrypt/acme.json ]; then
+    touch letsencrypt/acme.json
+    chmod 600 letsencrypt/acme.json
+    echo "Created letsencrypt/acme.json with permissions 600"
+fi
 
 # Fix permissions for n8n and Evolution (Node.js containers usually run as user 1000)
 # We use sudo here because this script is typically run on the server
