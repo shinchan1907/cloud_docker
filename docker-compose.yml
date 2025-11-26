@@ -12,7 +12,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       TZ: ${TIMEZONE}
     command: >
-      sh -c " echo 'Waiting for RDS to be ready...'; until pg_isready -h $$POSTGRES_HOST -U $$POSTGRES_USER; do sleep 2; done; export PGPASSWORD='$$POSTGRES_PASSWORD'; for db in n8n evolution; do
+      sh -c " echo 'Waiting for RDS to be ready...'; until pg_isready -h $$POSTGRES_HOST -U $$POSTGRES_USER; do sleep 2; done; export PGPASSWORD='$$POSTGRES_PASSWORD'; for db in n8n; do
         echo \"Checking database $$db...\";
         psql -h $$POSTGRES_HOST -U $$POSTGRES_USER -d postgres -tc \"SELECT 1 FROM pg_database WHERE datname = '$$db'\" | grep -q 1 || \
         (echo \"Creating database $$db...\" && psql -h $$POSTGRES_HOST -U $$POSTGRES_USER -d postgres -c \"CREATE DATABASE $$db\");
@@ -139,34 +139,30 @@ services:
   # --------------------------------------------------------------------------------------------------
   # Evolution API - WhatsApp API
   # --------------------------------------------------------------------------------------------------
-  evolution:
-    image: atendai/evolution-api:latest
-    container_name: evolution
+  # --------------------------------------------------------------------------------------------------
+  # WAHA - WhatsApp HTTP API
+  # --------------------------------------------------------------------------------------------------
+  waha:
+    image: devlikeapro/waha:latest
+    container_name: waha
     restart: unless-stopped
     environment:
-      - SERVER_URL=https://${EVOLUTION_SUBDOMAIN}.${DOMAIN_ROOT}
-      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY}
-      - DATABASE_PROVIDER=postgresql
-      - DATABASE_CONNECTION_URI=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/evolution
-      - REDIS_ENABLED=true
-      - REDIS_URI=redis://:${REDIS_PASSWORD}@redis:6379/1
-      - CONFIG_SESSION_PHONE_VERSION=${CONFIG_SESSION_PHONE_VERSION}
+      - WAHA_API_KEY=${WAHA_API_KEY}
+      - WAHA_DASHBOARD_USERNAME=${WAHA_DASHBOARD_USERNAME}
+      - WAHA_DASHBOARD_PASSWORD=${WAHA_DASHBOARD_PASSWORD}
+      - WHATSAPP_DEFAULT_ENGINE=WEBJS
+      - WAHA_PRINT_QR=false
       - TZ=${TIMEZONE}
     volumes:
-      - ./evolution-data:/evolution/store
+      - ./waha-data:/app/sessions
     networks:
       - bytenex-net
-    depends_on:
-      init-db:
-        condition: service_completed_successfully
-      redis:
-        condition: service_healthy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.evolution.rule=Host(`${EVOLUTION_SUBDOMAIN}.${DOMAIN_ROOT}`)"
-      - "traefik.http.routers.evolution.entrypoints=websecure"
-      - "traefik.http.routers.evolution.tls.certresolver=myresolver"
-      - "traefik.http.services.evolution.loadbalancer.server.port=8080"
+      - "traefik.http.routers.waha.rule=Host(`${WAHA_SUBDOMAIN}.${DOMAIN_ROOT}`)"
+      - "traefik.http.routers.waha.entrypoints=websecure"
+      - "traefik.http.routers.waha.tls.certresolver=myresolver"
+      - "traefik.http.services.waha.loadbalancer.server.port=3000"
     logging:
       driver: "json-file"
       options:
