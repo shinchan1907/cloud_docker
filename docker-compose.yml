@@ -10,6 +10,7 @@ services:
       POSTGRES_HOST: ${POSTGRES_HOST}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: ${TIMEZONE}
     command: >
       sh -c " echo 'Waiting for RDS to be ready...'; until pg_isready -h $$POSTGRES_HOST -U $$POSTGRES_USER; do sleep 2; done; export PGPASSWORD='$$POSTGRES_PASSWORD'; for db in n8n evolution; do
         echo \"Checking database $$db...\";
@@ -31,6 +32,8 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    environment:
+      - TZ=${TIMEZONE}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     command:
@@ -66,7 +69,9 @@ services:
     image: redis:alpine
     container_name: redis
     restart: unless-stopped
-    command: redis-server --requirepass ${REDIS_PASSWORD}
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
+    environment:
+      - TZ=${TIMEZONE}
     volumes:
       - ./redis-data:/data
     networks:
@@ -104,6 +109,7 @@ services:
       - N8N_PROTOCOL=https
       - WEBHOOK_URL=https://${N8N_SUBDOMAIN}.${DOMAIN_ROOT}/
       - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      - TZ=${TIMEZONE}
     volumes:
       - ./n8n-data:/home/node/.n8n
     networks:
@@ -136,6 +142,7 @@ services:
       - DATABASE_CONNECTION_URI=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/evolution
       - REDIS_ENABLED=true
       - REDIS_URI=redis://:${REDIS_PASSWORD}@redis:6379/1
+      - TZ=${TIMEZONE}
     volumes:
       - ./evolution-data:/evolution/store
     networks:
