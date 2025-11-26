@@ -1,0 +1,12 @@
+.env
+production.env
+node_modules/
+*.log
+.DS_Store
+mixpost-data/
+n8n-data/
+listmonk-data/
+evolution-data/
+redis-data/
+traefik-data/
+check_db.js

@@ -1,0 +1,10 @@
+FROM inovector/mixpost:latest
+
+USER root
+
+# Install PostgreSQL support
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends php-pgsql \
+    && rm -rf /var/lib/apt/lists/*
+
+USER www-data
