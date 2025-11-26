@@ -12,10 +12,10 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       TZ: ${TIMEZONE}
     command: >
-      sh -c " echo 'Waiting for RDS to be ready...'; until pg_isready -h $$POSTGRES_HOST -U $$POSTGRES_USER; do sleep 2; done; export PGPASSWORD='$$POSTGRES_PASSWORD'; for db in n8n; do
+      sh -c " echo 'Waiting for RDS to be ready...'; until pg_isready -h $$POSTGRES_HOST -U $$POSTGRES_USER; do sleep 2; done; export PGPASSWORD='$$POSTGRES_PASSWORD'; for db in n8n evolution; do
         echo \"Checking database $$db...\";
-        psql -h $$POSTGRES_HOST -U $$POSTGRES_USER -d postgres -tc \"SELECT 1 FROM pg_database WHERE datname = '$$db'\" | grep -q 1 || \
-        (echo \"Creating database $$db...\" && psql -h $$POSTGRES_HOST -U $$POSTGRES_USER -d postgres -c \"CREATE DATABASE $$db\");
+        psql \"host=$$POSTGRES_HOST user=$$POSTGRES_USER password=$$POSTGRES_PASSWORD dbname=postgres sslmode=require\" -tc \"SELECT 1 FROM pg_database WHERE datname = '$$db'\" | grep -q 1 || \
+        (echo \"Creating database $$db...\" && psql \"host=$$POSTGRES_HOST user=$$POSTGRES_USER password=$$POSTGRES_PASSWORD dbname=postgres sslmode=require\" -c \"CREATE DATABASE $$db\");
       done; echo 'All databases initialized.';"
     networks:
       - bytenex-net
@@ -108,6 +108,7 @@ services:
       - DB_POSTGRESDB_DATABASE=n8n
       - DB_POSTGRESDB_USER=${POSTGRES_USER}
       - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_POSTGRESDB_SSL_MODE=require
       - N8N_BASIC_AUTH_ACTIVE=true
       - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
       - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
@@ -140,29 +141,36 @@ services:
   # Evolution API - WhatsApp API
   # --------------------------------------------------------------------------------------------------
   # --------------------------------------------------------------------------------------------------
-  # WAHA - WhatsApp HTTP API
+  # Evolution API - WhatsApp API
   # --------------------------------------------------------------------------------------------------
-  waha:
-    image: devlikeapro/waha:latest
-    container_name: waha
+  evolution:
+    image: atendai/evolution-api:latest
+    container_name: evolution
     restart: unless-stopped
     environment:
-      - WAHA_API_KEY=${WAHA_API_KEY}
-      - WAHA_DASHBOARD_USERNAME=${WAHA_DASHBOARD_USERNAME}
-      - WAHA_DASHBOARD_PASSWORD=${WAHA_DASHBOARD_PASSWORD}
-      - WHATSAPP_DEFAULT_ENGINE=WEBJS
-      - WAHA_PRINT_QR=false
+      - SERVER_URL=https://${EVOLUTION_SUBDOMAIN}.${DOMAIN_ROOT}
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY}
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/evolution?sslmode=require
+      - REDIS_ENABLED=true
+      - REDIS_URI=redis://:${REDIS_PASSWORD}@redis:6379/1
+      - CONFIG_SESSION_PHONE_VERSION=${CONFIG_SESSION_PHONE_VERSION}
       - TZ=${TIMEZONE}
     volumes:
-      - ./waha-data:/app/sessions
+      - ./evolution-data:/evolution/store
     networks:
       - bytenex-net
+    depends_on:
+      init-db:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.waha.rule=Host(`${WAHA_SUBDOMAIN}.${DOMAIN_ROOT}`)"
-      - "traefik.http.routers.waha.entrypoints=websecure"
-      - "traefik.http.routers.waha.tls.certresolver=myresolver"
-      - "traefik.http.services.waha.loadbalancer.server.port=3000"
+      - "traefik.http.routers.evolution.rule=Host(`${EVOLUTION_SUBDOMAIN}.${DOMAIN_ROOT}`)"
+      - "traefik.http.routers.evolution.entrypoints=websecure"
+      - "traefik.http.routers.evolution.tls.certresolver=myresolver"
+      - "traefik.http.services.evolution.loadbalancer.server.port=8080"
     logging:
       driver: "json-file"
       options:
